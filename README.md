@@ -1,248 +1,58 @@
-<div align="center">
+# Motion Similarity Check
 
-# TMR: Text-to-Motion Retrieval
-## Using Contrastive 3D Human Motion Synthesis
+- 이 프로젝트는 Motion Generation Network인 **TMR**의 인코더 부분을 활용하여 동작들 간의 유사도를 체크하고 정리한 프로젝트임.
+- **TMR** 레포지토리의 일부 파일을 수정 및 추가했으며, 원본은 [링크]({https://github.com/Mathux/TMR})에서 확인할 수 있음.
 
-<a href="https://mathis.petrovich.fr"><strong>Mathis Petrovich</strong></a>
-·
-<a href="https://ps.is.mpg.de/~black"><strong>Michael J. Black</strong></a>
-·
-<a href="https://imagine.enpc.fr/~varolg"><strong>G&#252;l Varol</strong></a>
+## 주요 내용
 
+- 타겟 동작을 설정한 후 기존 데이터셋의 전체 시퀀스와 비교하여 유사한 동작들을 도출함.
+- 유사도를 도출하기 위해 동작 생성 네트워크인 **TMR**의 **Motion Encoder**를 활용함.
+- 타겟 동작들과 데이터셋 안의 동작들 간의 시퀀스 비교 결과를 **CSV** 파일로 정리함.
 
-[![ICCV2023](https://img.shields.io/badge/ICCV-2023-9065CA.svg?logo=ICCV)](https://iccv2023.thecvf.com)
-[![arXiv](https://img.shields.io/badge/arXiv-TMR-A10717.svg?logo=arXiv)](https://arxiv.org/abs/2305.00976)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)]()
+## Motivation
 
-</div>
+텍스트 설명 - 동작 페어로 구성된 동작 데이터셋이 있음. 이때, 타겟 모션과 비슷한 모션을 데이터셋 내에서 찾는 방법에 대해 고민하게 됨. 타겟 모션은 **text description**이 없으며, 새로운 모션을 생성할 수 없는 상황이라고 가정함.
 
+동작들의 피쳐를 추출하여 비교하고 유사도를 측정하는 과정의 개발이 필요했음.
 
-## Description
-Official PyTorch implementation of the paper:
-<div align="center">
+## 제안 방법
 
-[**TMR: Text-to-Motion Retrieval Using Contrastive 3D Human Motion Synthesis**](https://arxiv.org/abs/2305.00976).
+기존 동작 생성 네트워크의 **Motion Encoder**를 활용하여 동작들 간의 유사도를 도출함.
 
-</div>
+동작 데이터가 **Motion Encoder**를 통과하면 **Latent Vector**가 추출됨. 타겟 동작과 비교할 동작을 각각 **Latent Vector**로 변환한 후, 이를 **코사인 유사도**로 비교하여 유사도를 측정함.
 
-Please visit our [**webpage**](https://mathis.petrovich.fr/tmr/) for more details.
+![method.png](assets/method.png)
 
-### Bibtex
-If you find this code useful in your research, please cite:
+타겟 동작과 데이터셋의 동작을 비교하기 위해 사전 전처리를 진행함:
 
-```bibtex
-@inproceedings{petrovich23tmr,
-    title     = {{TMR}: Text-to-Motion Retrieval Using Contrastive {3D} Human Motion Synthesis},
-    author    = {Petrovich, Mathis and Black, Michael J. and Varol, G{\"u}l},
-    booktitle = {International Conference on Computer Vision ({ICCV})},
-    year      = 2023
-}
-```
-and if you use the re-implementation of TEMOS of this repo, please cite:
+- 모든 동작의 이동 값과 최상위 관절의 각도를 0으로 초기화 (Translation, Pelvis = 0)
+- **Motion Encoder**에 입력할 수 있도록 데이터셋의 피쳐를 변환 (SMPL → HumanML3D, 기존 스크립트 사용)
 
-```bibtex
-@inproceedings{petrovich22temos,
-    title     = {{TEMOS}: Generating diverse human motions from textual descriptions},
-    author    = {Petrovich, Mathis and Black, Michael J. and Varol, G{\"u}l},
-    booktitle = {European Conference on Computer Vision ({ECCV})},
-    year      = 2022
- }
-```
 
-You can also put a star :star:, if the code is useful to you.
 
-## Installation :construction_worker:
+[전처리 스크립트](https://github.com/JuicyJeong/TMR_jw/blob/master/src/datasets/preprop/identify_pelpos_amass.ipynb)
 
-<details><summary>Create environment</summary>
-&emsp;
+* 타겟 동작을 로드한 후 PyTorch의 데이터로더를 새로 설정함. 모든 동작의 길이는 타겟 동작과 동일하게 설정했고, 데이터셋의 동작들을 Window Slide 방식으로 타겟 동작과 비교할 수 있도록 설정함.
+[데이터 로더 & 실행](https://github.com/JuicyJeong/TMR_jw/blob/master/src/jw_compare_sim_ver2.py)
 
-Create a python virtual environnement:
-```bash
-python -m venv ~/.venv/TMR
-source ~/.venv/TMR/bin/activate
-```
+이후 코사인 유사도를 비교한 결과를 CSV 파일로 저장하고, 일정 유사도 이상의 데이터를 필터링하여 전처리 전의 데이터를 찾아옴. 타겟 동작과 유사한 동작을 시각화하여 비교함.
 
-Install [PyTorch](https://pytorch.org/get-started/locally/)
-```bash
-python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
-```
+| ref_file_name    | src_file_name   | Cos_Similarity | max_frame_start | max_frame_end |
+|------------------|-----------------|----------------|-----------------|---------------|
+| Ascend_Idle.npy  | 000466.npy       | 0.700204194    | 0               | 33            |
+| Ascend_Idle.npy  | 000683.npy       | 0.702683508    | 4               | 46            |
+| Ascend_Idle.npy  | 000683.npy       | 0.707437932    | 8               | 50            |
+| Ascend_Idle.npy  | 000683.npy       | 0.711345494    | 12              | 54            |
+| Ascend_Idle.npy  | 000683.npy       | 0.716152549    | 16              | 58            |
+| ...              | ...              | ...            | ...             | ...           |
 
-Then install remaining packages:
-```
-python -m pip install -r requirements.txt
-```
 
-which corresponds to the packages: pytorch_lightning, einops, hydra-core, hydra-colorlog, orjson, tqdm, scipy.
-The code was tested on Python 3.10.12 and PyTorch 2.0.1.
+[결과 처리](https://github.com/JuicyJeong/TMR_jw/blob/master/src/datasets/preprop/sim_result.ipynb)
 
-</details>
+{유니티 스크린샷(later...)}
 
-<details><summary>Set up the datasets</summary>
 
-### Introduction
-The process is a little bit different than other repos because we need to have a common reprensenation for HumanML3D, KITML and BABEL (to be able to train on one, and evaluate on another).
-If you are currious about the details, I recommand you to read this file: [DATASETS.md](DATASETS.md). I also put the bibtex files of the datasets, which I recommand you to cite.
-
-### Get the data
-Please follow the instructions of the ``raw_pose_processing.ipynb`` of the [HumanML3D](https://github.com/EricGuo5513/HumanML3D) repo, to get the ``pose_data`` folder.
-Then copy or symlink the pose_data folder in ``datasets/motions/``:
-```bash
-ln -s /path/to/HumanML3D/pose_data datasets/motions/pose_data
-```
-
-### Compute the features
-Run the following command, to compute the HumanML3D Guo features on the whole AMASS (+HumanAct12) dataset.
-
-```bash
-python -m prepare.compute_guoh3dfeats
-```
-
-It should process the features (+ mirrored version) and saved them in ``datasets/motions/guoh3dfeats``.
-
-
-### Compute the text embeddings
-Run this command to compute the sentence embeddings and token embeddings used in TMR for each datasets.
-
-```bash
-python -m prepare.text_embeddings data=humanml3d
-```
-
-This will save:
-- the token embeddings of ``distilbert`` in ``datasets/annotations/humanml3d/token_embeddings``
-- the sentence embeddings of ``all-mpnet-base-v2`` in ``datasets/annotations/humanml3d/sent_embeddings``
-
-
-### Compute statistics (already done for you)
-
-To get statistics of the motion distribution for each datasets, you can run the following commands. It is already included in the repo, so you don't have to. The statistics are computed on the training set.
-
-```bash
-python -m prepare.motion_stats data=humanml3d
-```
-
-It will save the statistics (``mean.pt`` and ``std.pt``) in this folder ``stats/humanml3d/guoh3dfeats``. You can replace ``data=humanml3d`` with ``data=kitml`` or ``data=babel`` anywhere in this repo.
-
-</details>
-
-## Training :rocket:
-
-```bash
-python train.py [OPTIONS]
-```
-
-<details><summary>Details</summary>
-&emsp;
-
-By default, it will train TMR on HumanML3D and store the folder in ``outputs/tmr_humanml3d_guoh3dfeats`` which I will call ``RUN_DIR``.
-The other options are:
-
-#### Models:
-- ``model=tmr``: TMR (by default)
-- ``model=temos``: TEMOS
-
-#### Datasets:
-- ``data=humanml3d``: HumanML3D (by default)
-- ``data=kitml``: KIT-ML
-- ``data=babel``: BABEL
-
-</details>
-
-<details><summary>Extracting weights</summary>
-&emsp;
-
-After training, run the following command, to extract the weights from the checkpoint:
-
-```bash
-python extract.py run_dir=RUN_DIR
-```
-
-It will take the last checkpoint by default. This should create the folder ``RUN_DIR/last_weights`` and populate it with the files: ``motion_decoder.pt``, ``motion_encoder.pt`` and ``text_encoder.pt``.
-This process makes loading models faster, it does not depends on the file structure anymore, and each module can be loaded independently. This is already done for pretrained models.
-
-</details>
-
-## Pretrained models :dvd:
-
-```bash
-bash prepare/download_pretrain_models.sh
-```
-
-This will put pretrained models in the ``models`` folder.
-Currently, there are:
-- TMR trained on HumanML3D with Guo et al. humanml3d features ``models/tmr_humanml3d_guoh3dfeats``
-- TMR trained on KIT-ML with Guo et al. humanml3d features ``models/tmr_kitml_guoh3dfeats``
-
-Not that KIT-ML is used with the Guo et al. ``humanml3d`` features (it is not a mistake). The motions come from AMASS and are converted (I am not using the MMM joints from the original KIT-ML).
-This makes the two models works in the same motion space.
-
-More models may be available later on.
-
-## Evaluation :bar_chart:
-
-```bash
-python retrieval.py run_dir=RUN_DIR
-```
-
-It will compute the metrics, show them and save them in this folder ``RUN_DIR/contrastive_metrics/``.
-
-
-## Usage :computer:
-
-### Encode a motion
-Note that the .npy file should corresponds to HumanML3D Guo features.
-
-```bash
-python encode_motion.py run_dir=RUN_DIR npy=/path/to/motion.npy
-```
-
-### Encode a text
-
-```bash
-python encode_text.py run_dir=RUN_DIR text="A person is walking forward."
-```
-
-### Compute similarity between text and motion
-```bash
-python text_motion_sim.py run_dir=RUN_DIR text=TEXT npy=/path/to/motion.npy
-```
-For example with ``text="a man sets to do a backflips then fails back flip and falls to the ground"`` and ``npy=HumanML3D/HumanML3D/new_joint_vecs/001034.npy`` you should get around 0.96.
-
-
-## Launch the demo
-
-### Encode the whole motion dataset
-```bash
-python encode_dataset.py run_dir=RUN_DIR
-```
-
-
-### Text-to-motion retrieval demo
-Run this command:
-
-```bash
-python app.py
-```
-
-and then open your web browser at the address: ``http://localhost:7860``.
-
-## Localization (WIP)
-
-The code will be available a bit later.
-
-
-### Reimplementation of TEMOS (WIP)
-
-<details><summary>Details and difference</summary>
-&emsp;
-
-[TEMOS code](https://github.com/Mathux/TEMOS) was probably a bit too abstract and some users struggle to understand it. As TMR and TEMOS share a similar architecture, I took the opportunity to rewrite TEMOS in this repo [src/model/temos.py](src/model/temos.py) to make it more user friendly. Note that in this repo, the motion representation is different from the original TEMOS paper (see [DATASETS.md](DATASETS.md) for more details). Another difference is that I precompute the token embeddings (from distilbert) beforehand (as I am not finetunning the distilbert for the final model). This makes the training around x2 faster and it is more memory efficient.
-
-The code and the generations are not fully tested yet, I will update the README with pretrained models and more information later.
-
-</details>
-
-
-## License :books:
-This code is distributed under an [MIT LICENSE](LICENSE).
-
-Note that our code depends on other libraries, including PyTorch, PyTorch3D, Hugging Face, Hydra, and uses datasets which each have their own respective licenses that must also be followed.
+## 한계점
+유사도가 0.7 이상의 결과값을 추출하고, 높은 순으로 정렬하여 결과를 확인했지만 정성적으로 좋은 결과를 얻지 못함.
+Align 과정에서 Pelvis와 Translation의 값을 0으로 초기화한 후 동작을 비교한 것이 문제였다고 추측됨.
+동작들의 Align 과정을 재정립하거나 시퀀스 정렬 없이 비교하거나, 다른 유사도 측정 방법(metric)을 사용하는 것을 고려해야 함.
