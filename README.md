@@ -33,7 +33,7 @@
 [전처리 스크립트](https://github.com/JuicyJeong/TMR_jw/blob/master/datasets/preprop/identify_pelpos_amass.ipynb)
 
 * 타겟 동작을 로드한 후 PyTorch의 데이터로더를 새로 설정함. 모든 동작의 길이는 타겟 동작과 동일하게 설정했고, 데이터셋의 동작들을 Window Slide 방식으로 타겟 동작과 비교할 수 있도록 설정함.
-[데이터 로더 & 실행](https://github.com/JuicyJeong/TMR_jw/blob/jw_compare_sim_ver2.py)
+[데이터 로더 & 실행](https://github.com/JuicyJeong/TMR_jw/blob/master/jw_compare_sim_ver2.py)
 
 이후 코사인 유사도를 비교한 결과를 CSV 파일로 저장하고, 일정 유사도 이상의 데이터를 필터링하여 전처리 전의 데이터를 찾아옴. 타겟 동작과 유사한 동작을 시각화하여 비교함.
 
